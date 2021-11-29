@@ -1,4 +1,5 @@
 from ad8_data import data
+from ad8_data_2 import data as data2
 
 sourcecode = data.split("\n")
 
@@ -6,7 +7,7 @@ sourcecode = data.split("\n")
 class Interpreter:
     def __init__(self):
         self.accumulator = 0
-        self.inst = 0
+        self.pos = 0
         self.instructions = {
             "nop": self.nop,
             "acc": self.acc,
@@ -16,55 +17,62 @@ class Interpreter:
 
     def reset(self):
         self.accumulator = 0
-        self.inst = 0
+        self.pos = 0
         self.call_log = [] # list of the instructions that have been called.
 
     def nop(self, arg):
-        self.inst += 1
+        self.pos += 1
 
     def acc(self, arg):
         self.accumulator += int(arg)
-        self.inst += 1
+        self.pos += 1
 
     def jmp(self, arg):
-        self.inst += int(arg)
+        self.pos += int(arg)
 
     def execute(self, sourcecode):
         while True:
-            if self.inst == len(sourcecode)+1:
+            if self.pos == len(sourcecode):
                 print("Execution Complete.")
                 return True
-            (i, a) = sourcecode[self.inst].split(" ")
-            if self.inst in self.call_log:
-                print(f"Loop detected at instruction {max(self.call_log)+1}")
-                print(f"Accumulator: {self.accumulator}")
+            (i, a) = sourcecode[self.pos].split(" ")
+            if self.pos in self.call_log:
+                #print(f"Loop detected at instruction {max(self.call_log)+1}")
+                #print(f"Accumulator: {self.accumulator}")
                 return False
-            self.call_log.append(self.inst)
+            self.call_log.append(self.pos)
             self.instructions[i](a)
 
-def modifySource(sourcecode, call_log):
-    """Find the last call of nop or jmp in call_log, and swap it in sourcecode"""
-    searching = True
-    i = len(call_log) - 1
-    while searching and (i>0):
-        (ins, a) = sourcecode[call_log[i]].split(" ")
-        if ins == "nop":
-            print(f"{sourcecode[call_log[i]]} -> jmp {a}")
-            sourcecode[call_log[i]] = f"jmp {a}"
-            return sourcecode
-        if ins == "jmp":
-            print(f"{sourcecode[call_log[i]]} -> nop {a}")
-            sourcecode[call_log[i]] = f"nop {a}"
-            return sourcecode
-        else:
-            i -= 1
+def findNextCallLogIndexToModify(index, call_log, sourcecode):
+    while index > 0:
+        index -= 1
+        (i, a) = sourcecode[call_log[index]].split(" ")
+        if i == 'nop':
+            return (index, f"jmp {a}")
+        if i == 'jmp':
+            return (index, f"nop {a}")
+    return (0, "ERR 0")
+
 
 interp = Interpreter()
+interp.execute(sourcecode)
+print("Part 1:", interp.accumulator)
+
+original_call_log = interp.call_log.copy()
+# modified_call_log = interp.call_log
+modified_call_index = len(original_call_log)
+modified_sourcecode = sourcecode.copy()
 while True:
     interp.reset()
     if not interp.execute(sourcecode):
-        sourcecode = modifySource(sourcecode, interp.call_log)
-        # modify src?
+        (modified_call_index, new_call) = findNextCallLogIndexToModify(modified_call_index, original_call_log, sourcecode)
+        modified_sourcecode = sourcecode
+        modified_sourcecode[original_call_log[modified_call_index]] = new_call
     else:
+        print("Part 2: modify line",original_call_log[modified_call_index]+1, "change it to:", new_call)
         # should be good
-        pass
+        break
+
+sourcecode2 = data2.split("\n")
+interp.execute(sourcecode)
+print("Part 2:", interp.accumulator)
